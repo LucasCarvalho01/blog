@@ -10,3 +10,10 @@ struct BlogOperation {
 };
 
 #endif
+
+
+// NEW_CONNECTION 1
+// NEW_POST 2
+// LIST_TOPICS 3
+// SUBSCRIBE_TOPIC 4
+// DISCONNECT 5
