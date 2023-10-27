@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 
 #include "blogoperation.h"
-#include "game.h"
+#include "blog.h"
 #include "common.h"
 
 #define NEW_CONNECTION 1
@@ -15,17 +15,22 @@
 #define LIST_TOPICS 3
 #define SUBSCRIBE_TOPIC 4
 #define DISCONNECT 5
+#define UNSUBSCRIBE_TOPIC 6
 
 #define MAX_CLIENTS 10
 #define MAX_TOPICS 20
 #define MAX_TOPIC_NAME_LENGTH 50
+#define MAX_POSTS 20
 
 int main(int argc, char **argv) {
 
     struct BlogOperation blog_operation;
     struct BlogOperation response;
     char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
-    int num_topics = 0;
+    bool client_ids[MAX_CLIENTS] = {false};
+    bool subscriptions[MAX_CLIENTS][MAX_TOPICS] = {false};
+    int numTopics = 0;
+
 
     struct sockaddr_storage storage;
     if (0 != server_sock_addr_init(argv[1], argv[2], &storage))
@@ -64,8 +69,6 @@ int main(int argc, char **argv) {
 
     int clientSocket;
 
-    bool client_ids[MAX_CLIENTS] = {false};
-
     // find first available client id
     int client_id = blog_operation.client_id;
 
@@ -97,9 +100,23 @@ int main(int argc, char **argv) {
 
         // ...
         if (blog_operation.operation_type == NEW_CONNECTION) {
-            setResponse(&response, client_id, NEW_CONNECTION, client_id, "", "");   
+            setResponse(&response, client_id, NEW_CONNECTION, 1, "", "");   
         }
 
+        if (blog_operation.operation_type == SUBSCRIBE_TOPIC) {
+            subscribeToTopic(blog_operation.topic, client_id, subscriptions, topics, &numTopics);
+            setResponse(&response, client_id, SUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
+        }
+
+        if (blog_operation.operation_type == UNSUBSCRIBE_TOPIC) {
+            unsubscribeToTopic(client_id, blog_operation.topic, subscriptions, topics, numTopics);
+            setResponse(&response, client_id, UNSUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
+        }
+
+        if (blog_operation.operation_type == NEW_POST) {
+            createNewPost(blog_operation, subscriptions, topics, numTopics);
+            setResponse(&response, client_id, NEW_POST, 1, blog_operation.topic, blog_operation.content);
+        }
 
         if (blog_operation.operation_type == DISCONNECT) {
             // client disconnects
@@ -109,7 +126,7 @@ int main(int argc, char **argv) {
 
         if (blog_operation.operation_type == LIST_TOPICS) {
             // client requests list of topics
-            print_topics(topics, num_topics);
+            printTopics(topics, numTopics);
         }
 
 

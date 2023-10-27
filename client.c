@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "action.h"
 #include "common.h"
 
 #define START 0
@@ -56,9 +55,6 @@ int main(int argc, char **argv) {
     }
 
     //client connected to server
-    
-    struct Action actionReceived;
-    struct Action actionToSend;
 
     //listening to console commands
     while (true) {
