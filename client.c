@@ -18,95 +18,161 @@
 
 #define INVALID_COMMAND -1
 
-
-
+int takeInput(struct BlogOperation *operation);
 int getClientAction(char *input);
 void printError(int errorCode);
 
-int main(int argc, char **argv) {
-    char* ip = argv[1];
-    char* port = argv[2];
-    int actionCode;
-    int count;
+int main(int argc, char **argv)
+{
+  char *ip = argv[1];
+  char *port = argv[2];
+  int actionCode;
+  int count;
+  int id = 0;
+  bool connected = false;
 
-    struct BlogOperation operation;
+  struct BlogOperation operation;
 
-    struct sockaddr_storage storage;
-    addrparse(ip, port, &storage);
+  struct sockaddr_storage storage;
+  addrparse(ip, port, &storage);
 
-    struct sockaddr *addr = (struct sockaddr *) &storage;
+  struct sockaddr *addr = (struct sockaddr *)&storage;
 
-    int s;
-    s = socket(storage.ss_family, SOCK_STREAM, 0);
-    if(s == -1) {
-      exit(EXIT_FAILURE);
-    }
+  int s;
+  s = socket(storage.ss_family, SOCK_STREAM, 0);
+  if (s == -1)
+  {
+    exit(EXIT_FAILURE);
+  }
 
-    if(0 != connect(s, addr, sizeof(storage))) {
-      exit(EXIT_FAILURE);
-    }
+  if (0 != connect(s, addr, sizeof(storage)))
+  {
+    exit(EXIT_FAILURE);
+  }
 
-    //client connected to server
+  // client connected to server
 
-    //listening to console commands
-    while (true) {
+  // listening to console commands
+  while (true)
+  {
+    // if not connected, send new connection message
+    if (connected == false)
+    {
+      operation.client_id = id;
+      operation.operation_type = NEW_CONNECTION;
+      operation.server_response = 0;
+      strcpy(operation.topic, "");
+      strcpy(operation.content, "");
 
-
-      //in case of invalid command
-      if (actionCode < 0) {
-        printError(actionCode);
-        continue;
-      }
-
-      //sending message
       count = send(s, &operation, sizeof(operation), 0);
-      if(count != sizeof(operation)) {
+      if (count != sizeof(operation))
+      {
         printf("error sending message\n");
         exit(EXIT_FAILURE);
       }
 
+      // waiting for server response
+      count = recv(s, &operation, sizeof(operation), 0);
+      if (count != sizeof(operation))
+      {
+        printf("error receiving message\n");
+        exit(EXIT_FAILURE);
+      }
+
+      // if server response is 1, connection was successful
+      if (operation.server_response == 1)
+      {
+        connected = true;
+        id = operation.client_id;
+      }
+      continue;
     }
 
-    close(s);
-    return 0;
+    actionCode = takeInput(&operation);
+
+    // in case of invalid command
+    if (actionCode < 0)
+    {
+      printError(actionCode);
+      continue;
+    }
+
+    // in case of new post, get content from command line
+    if (actionCode == NEW_POST)
+    {
+      char content[2048];
+      fgets(content, 2048, stdin);
+      strcpy(operation.content, content);
+    }
+
+    operation.client_id = id;
+    operation.operation_type = actionCode;
+    operation.server_response = 0;
+
+    // sending message
+    count = send(s, &operation, sizeof(operation), 0);
+    if (count != sizeof(operation))
+    {
+      printf("error sending message\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  close(s);
+  return 0;
 }
 
-
-int takeInput(int* coordinatesArr, int boardReceived[4][4]) {
-  char input[64], command[64], coordinates[8];
+int takeInput(struct BlogOperation *operation)
+{
+  char input[128], command[64];
   char *token;
   char delim[] = " ";
   int intAction;
-  int boardCoordinates[2] = {-1, -1};
 
-    // Read command
-    fgets(input, 64, stdin);
+  // Read command
+  fgets(input, 128, stdin);
+  token = strtok(input, delim);
+  strcpy(command, token);
 
-    token = strtok(input, delim);
-    strcpy(command, token);
+  intAction = getClientAction(command);
 
-    // If it passes more information, stores it
+  // If it passes topic name, stores it
+  token = strtok(NULL, delim);
+
+  // handles subscribe and unsubscribe commands
+  if (token != NULL && (intAction == SUBSCRIBE_TOPIC || intAction == UNSUBSCRIBE_TOPIC))
+  {
+    strcpy(operation->topic, token);
+  }
+  // handles publish command, get in which topic will be posted
+  else if (intAction == NEW_POST)
+  {
     token = strtok(NULL, delim);
-    if (token != NULL) {
-      strcpy(coordinates, token);
-
+    if (token != NULL)
+    {
+      strcpy(operation->topic, token);
     }
-
-    intAction = getClientAction(command);
+  }
+  // others actions dont need topic nor content
+  else
+  {
+    strcpy(operation->topic, "");
+    strcpy(operation->content, "");
+  }
 
   return intAction;
 }
 
-
 // Get string action and convert to specified int
-int getClientAction(char *input) {
-  if (!strncmp(input, "publish in", 10))
+int getClientAction(char *input)
+{
+  if (!strncmp(input, "publish", 7))
     return NEW_POST;
   if (!strncmp(input, "subscribe", 9))
     return SUBSCRIBE_TOPIC;
   if (!strncmp(input, "unsubscribe", 11))
     return UNSUBSCRIBE_TOPIC;
-  if (!strncmp(input, "list topics", 11))
+  if (!strncmp(input, "list", 4))
     return LIST_TOPICS;
   if (!strncmp(input, "exit", 4))
     return DISCONNECT;
@@ -114,18 +180,18 @@ int getClientAction(char *input) {
     return INVALID_COMMAND;
 }
 
-
-void printError(int errorCode) {
+void printError(int errorCode)
+{
   char error[64] = "";
 
-  switch (errorCode) {
-    case INVALID_COMMAND:
-        strcpy(error, "error: command not found");
-        break;
+  switch (errorCode)
+  {
+  case INVALID_COMMAND:
+    strcpy(error, "error: command not found");
+    break;
 
-
-    default:
-        break;
+  default:
+    break;
   }
 
   printf("%s\n", error);
