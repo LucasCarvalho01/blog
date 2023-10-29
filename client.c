@@ -51,6 +51,9 @@ int main(int argc, char **argv)
   }
 
   // client connected to server
+  char addrstr[256];
+  converterEnderecoEmString(addr, addrstr, 256);
+  printf("connected to %s\n", addrstr);
 
   // listening to console commands
   while (true)
@@ -82,6 +85,7 @@ int main(int argc, char **argv)
       // if server response is 1, connection was successful
       if (operation.server_response == 1)
       {
+        printf("client %02d connected\n", operation.client_id);
         connected = true;
         id = operation.client_id;
       }
