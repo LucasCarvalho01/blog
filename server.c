@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 #include "blogoperation.h"
 #include "blog.h"
@@ -15,15 +16,22 @@
 #define MAX_TOPIC_NAME_LENGTH 50
 #define MAX_POSTS 20
 
-int main(int argc, char **argv)
-{
-    struct BlogOperation blog_operation;
+void * client_thread(void *data);
+
+struct client_data {
+    int csock;
+    struct sockaddr_storage storage;
+};
+
+struct BlogOperation blog_operation;
     struct BlogOperation response;
     char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
     bool client_ids[MAX_CLIENTS] = {false};
     bool subscriptions[MAX_CLIENTS][MAX_TOPICS] = {false};
     int numTopics = 0;
 
+int main(int argc, char **argv)
+{
     struct sockaddr_storage storage;
     if (0 != server_sock_addr_init(argv[1], argv[2], &storage))
     {
@@ -59,49 +67,75 @@ int main(int argc, char **argv)
     converterEnderecoEmString(addr, addrstr, 256);
     printf("[log] bound to %s, waiting connections\n", addrstr);
 
-    struct sockaddr_storage cstorage;
-    struct sockaddr *caddr = (struct sockaddr *)(&cstorage);
-    socklen_t caddrlen = sizeof(cstorage);
 
-    // socket to communicate with client
-    int clientSocket;
-    clientSocket = accept(s, caddr, &caddrlen);
-    if (clientSocket == -1)
+    while (true)
     {
-        exit(EXIT_FAILURE);
+        struct sockaddr_storage cstorage;
+        struct sockaddr *caddr = (struct sockaddr *)(&cstorage);
+        socklen_t caddrlen = sizeof(cstorage);
+
+        // socket to communicate with client
+        int clientSocket;
+        clientSocket = accept(s, caddr, &caddrlen);
+        if (clientSocket == -1)
+        {
+            exit(EXIT_FAILURE);
+        }
+
+        printf("accepted new connection. creating thread to communicate\n");
+
+        struct client_data *cdata = malloc(sizeof(struct client_data));
+        if (!cdata) {
+            printf("malloc failed\n");
+            exit(EXIT_FAILURE);
+        }
+
+        cdata->csock= clientSocket;
+        memcpy(&(cdata->storage), &cstorage, sizeof(cstorage));
+
+        pthread_t tid;
+        pthread_create(&tid, NULL, client_thread, cdata);
+
     }
+
+    return 0;
+}
+
+void * client_thread(void *data)
+{
+    struct client_data *cdata = (struct client_data *) data;
+    struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
 
     char caddrstr[256];
     converterEnderecoEmString(caddr, caddrstr, 256);
     printf("[log] connection from %s\n", caddrstr);
 
-    // find first available client id
-    int client_id = blog_operation.client_id;
-
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (!client_ids[i])
-        {
-            client_id = i + 1;
-            client_ids[i] = true;
-            printf("client %02d connected\n", client_id);
-            break;
-        }
-    }
-
-    if (client_id == 0)
-    {
-        // no available client ids
-        exit(EXIT_FAILURE);
-    }
-
-    while (true)
-    {
-        // receives msg from clientSocket, stores it in blog struct
-        recv(clientSocket, &blog_operation, sizeof(struct BlogOperation), 0);
+    // receives msg from clientSocket, stores it in blog struct
+    recv(cdata->csock, &blog_operation, sizeof(struct BlogOperation), 0);   
 
         if (blog_operation.operation_type == NEW_CONNECTION)
         {
+            // find first available client id
+            int client_id = blog_operation.client_id;
+
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if (!client_ids[i])
+                {
+                    client_id = i + 1;
+                    client_ids[i] = true;
+                    printf("client %02d connected\n", client_id);
+                    break;
+                }
+            }
+
+            if (client_id == 0)
+            {
+                // no available client ids
+                printf("no available client ids\n");
+                exit(EXIT_FAILURE);
+            }
+
             setResponse(&response, client_id, NEW_CONNECTION, 1, "", "");
         }
 
@@ -113,33 +147,32 @@ int main(int argc, char **argv)
 
         if (blog_operation.operation_type == SUBSCRIBE_TOPIC)
         {
-            subscribeToTopic(blog_operation.topic, client_id, subscriptions, topics, &numTopics);
-            setResponse(&response, client_id, SUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
+            subscribeToTopic(blog_operation.topic, blog_operation.client_id, subscriptions, topics, &numTopics);
+            setResponse(&response, blog_operation.client_id, SUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
         }
 
         if (blog_operation.operation_type == UNSUBSCRIBE_TOPIC)
         {
-            unsubscribeToTopic(client_id, blog_operation.topic, subscriptions, topics, numTopics);
-            setResponse(&response, client_id, UNSUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
+            unsubscribeToTopic(blog_operation.client_id, blog_operation.topic, subscriptions, topics, numTopics);
+            setResponse(&response, blog_operation.client_id, UNSUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
         }
 
         if (blog_operation.operation_type == NEW_POST)
         {
             createNewPost(blog_operation, subscriptions, topics, numTopics);
-            setResponse(&response, client_id, NEW_POST, 1, blog_operation.topic, blog_operation.content);
+            setResponse(&response, blog_operation.client_id, NEW_POST, 1, blog_operation.topic, blog_operation.content);
         }
 
         if (blog_operation.operation_type == DISCONNECT)
         {
             unsubscribeAllTopics(blog_operation.client_id, subscriptions, numTopics);
-            close(clientSocket);
-            client_ids[client_id] = false; // mark client id as unused
-            printf("client %02d was disconnected\n", client_id);
+            close(cdata->csock);
+            client_ids[blog_operation.client_id] = false; // mark client id as unused
+            printf("client %02d was disconnected\n", blog_operation.client_id);
         }
 
         // sending response msg to client
-        send(clientSocket, &blog_operation, sizeof(struct BlogOperation), 0);
-    }
+        send(cdata->csock, &blog_operation, sizeof(struct BlogOperation), 0);
 
-    return 0;
+    pthread_exit(EXIT_SUCCESS);
 }

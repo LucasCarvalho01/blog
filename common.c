@@ -81,9 +81,9 @@ void converterEnderecoEmString(const struct sockaddr *addr, char *str, size_t st
         struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
         if (!inet_ntop(AF_INET, &(addr4->sin_addr), addrstr, INET6_ADDRSTRLEN + 1))
         {
-            exit("ntop");
+            exit(EXIT_FAILURE);
         }
-        port = ntohs(addr4->sin_port); // Network para host short
+        port = ntohs(addr4->sin_port); // Network para host shorts
     }
     else if (addr->sa_family == AF_INET6)
     {
@@ -91,13 +91,13 @@ void converterEnderecoEmString(const struct sockaddr *addr, char *str, size_t st
         struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
         if (!inet_ntop(AF_INET6, &(addr6->sin6_addr), addrstr, INET6_ADDRSTRLEN + 1))
         {
-            exit("ntop");
+            exit(EXIT_FAILURE);
         }
         port = ntohs(addr6->sin6_port); //
     }
     else
     {
-        exit("unknown protocol family.");
+        exit(EXIT_FAILURE);
     }
     if (str)
         snprintf(str, strsize, "IPv%d %s %hu", versao, addrstr, port);
