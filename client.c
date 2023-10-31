@@ -152,6 +152,11 @@ int main(int argc, char **argv)
 
     printf("\nrecebida nova msg from server\n");
     printOperation(operation);
+
+    if (operation.operation_type == LIST_TOPICS)
+    {
+      printf("%s\n", operation.content);
+    }
   }
 
   close(s);
@@ -178,6 +183,8 @@ int takeInput(struct BlogOperation *operation)
   // handles subscribe and unsubscribe commands
   if (token != NULL && (intAction == SUBSCRIBE_TOPIC || intAction == UNSUBSCRIBE_TOPIC))
   {
+    // Remove '\n' character at the end of the string
+    token[strcspn(token, "\n")] = '\0';
     strcpy(operation->topic, token);
   }
   // handles publish command, get in which topic will be posted
@@ -186,10 +193,12 @@ int takeInput(struct BlogOperation *operation)
     token = strtok(NULL, delim);
     if (token != NULL)
     {
+      // Remove '\n' character at the end of the string
+      token[strcspn(token, "\n")] = '\0';
       strcpy(operation->topic, token);
     }
   }
-  // others actions dont need topic nor content
+  // other actions dont need topic nor content
   else
   {
     strcpy(operation->topic, "");

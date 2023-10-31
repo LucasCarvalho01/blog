@@ -145,32 +145,32 @@ void *client_thread(void *data)
 
         if (blog_operation.operation_type == LIST_TOPICS)
         {
-            // client requests list of topics
-            printTopics(topics, numTopics);
+            char* topicsNames = getTopics(topics, numTopics);
+            setResponse(&response, blog_operation.client_id, LIST_TOPICS, 1, "", topicsNames);
         }
 
-        if (blog_operation.operation_type == SUBSCRIBE_TOPIC)
+        else if (blog_operation.operation_type == SUBSCRIBE_TOPIC)
         {
             subscribeToTopic(blog_operation.topic, blog_operation.client_id, subscriptions, topics, &numTopics);
             setResponse(&response, blog_operation.client_id, SUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
         }
 
-        if (blog_operation.operation_type == UNSUBSCRIBE_TOPIC)
+        else if (blog_operation.operation_type == UNSUBSCRIBE_TOPIC)
         {
             unsubscribeToTopic(blog_operation.client_id, blog_operation.topic, subscriptions, topics, numTopics);
             setResponse(&response, blog_operation.client_id, UNSUBSCRIBE_TOPIC, 1, blog_operation.topic, "");
         }
 
-        if (blog_operation.operation_type == NEW_POST)
+        else if (blog_operation.operation_type == NEW_POST)
         {
             createNewPost(blog_operation, subscriptions, topics, numTopics);
             setResponse(&response, blog_operation.client_id, NEW_POST, 1, blog_operation.topic, blog_operation.content);
         }
 
-        if (blog_operation.operation_type == DISCONNECT)
+        else if (blog_operation.operation_type == DISCONNECT)
         {
             unsubscribeAllTopics(blog_operation.client_id, subscriptions, numTopics);
-            client_ids[blog_operation.client_id] = false; // mark client id as unused
+            client_ids[blog_operation.client_id - 1] = false; // mark client id as unused
             
             // sending response msg to client
             printf("client %02d was disconnected\n", blog_operation.client_id);

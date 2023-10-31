@@ -21,6 +21,25 @@ void printTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
     }
 }
 
+char* getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics) {
+    char* contentToSend = malloc(MAX_TOPICS * MAX_TOPIC_NAME_LENGTH * sizeof(char));
+
+    if (numTopics == 0) {
+        strcpy(contentToSend, "no topics available");
+        return contentToSend;
+    }
+    
+    printf("%s ", topics[0]);
+    strcpy(contentToSend, topics[0]);
+    for (int i = 1; i < numTopics; i++) {
+        printf("%s ", topics[i]);
+        strcat(contentToSend, "; ");
+        strcat(contentToSend, topics[i]);
+    }
+
+    return contentToSend;
+}
+
 void setResponse(struct BlogOperation *response, int client_id, int operation, int isServerResponse, char *topic, char *content)
 {
     response->client_id = client_id;
@@ -34,7 +53,7 @@ void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPI
 {
     int aux = -1;
 
-    for (int i = 0; i < *numTopics; i++)
+    for (int i = 0; i < (*numTopics); i++)
     {
         if (strcmp(topics[i], topic) == 0)
         {
@@ -52,7 +71,7 @@ void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPI
     }
 
     printf("client %02d subscribed to %s\n", client_id, topic);
-    subscriptions[client_id - 1][aux] = true;
+    subscriptions[client_id - 1][aux-1] = true;
 }
 
 void unsubscribeToTopic(int client_id, char *topic_name, bool subscriptions[MAX_CLIENTS][MAX_TOPICS], char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
