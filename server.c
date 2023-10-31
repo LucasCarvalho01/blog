@@ -16,19 +16,20 @@
 #define MAX_TOPIC_NAME_LENGTH 50
 #define MAX_POSTS 20
 
-void * client_thread(void *data);
+void *client_thread(void *data);
 
-struct client_data {
+struct client_data
+{
     int csock;
     struct sockaddr_storage storage;
 };
 
 struct BlogOperation blog_operation;
-    struct BlogOperation response;
-    char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
-    bool client_ids[MAX_CLIENTS] = {false};
-    bool subscriptions[MAX_CLIENTS][MAX_TOPICS] = {false};
-    int numTopics = 0;
+struct BlogOperation response;
+char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
+bool client_ids[MAX_CLIENTS] = {false};
+bool subscriptions[MAX_CLIENTS][MAX_TOPICS] = {false};
+int numTopics = 0;
 
 int main(int argc, char **argv)
 {
@@ -67,7 +68,6 @@ int main(int argc, char **argv)
     converterEnderecoEmString(addr, addrstr, 256);
     printf("[log] bound to %s, waiting connections\n", addrstr);
 
-
     while (true)
     {
         struct sockaddr_storage cstorage;
@@ -85,33 +85,37 @@ int main(int argc, char **argv)
         printf("accepted new connection. creating thread to communicate\n");
 
         struct client_data *cdata = malloc(sizeof(struct client_data));
-        if (!cdata) {
+        if (!cdata)
+        {
             printf("malloc failed\n");
             exit(EXIT_FAILURE);
         }
 
-        cdata->csock= clientSocket;
+        cdata->csock = clientSocket;
         memcpy(&(cdata->storage), &cstorage, sizeof(cstorage));
 
         pthread_t tid;
         pthread_create(&tid, NULL, client_thread, cdata);
 
+        printf("thread created\nWaiting new connections\n");
     }
 
     return 0;
 }
 
-void * client_thread(void *data)
+void *client_thread(void *data)
 {
-    struct client_data *cdata = (struct client_data *) data;
+    struct client_data *cdata = (struct client_data *)data;
     struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
 
     char caddrstr[256];
     converterEnderecoEmString(caddr, caddrstr, 256);
     printf("[log] connection from %s\n", caddrstr);
 
-    // receives msg from clientSocket, stores it in blog struct
-    recv(cdata->csock, &blog_operation, sizeof(struct BlogOperation), 0);   
+    while (true)
+    {
+        // receives msg from clientSocket, stores it in blog struct
+        recv(cdata->csock, &blog_operation, sizeof(struct BlogOperation), 0);
 
         if (blog_operation.operation_type == NEW_CONNECTION)
         {
@@ -166,13 +170,19 @@ void * client_thread(void *data)
         if (blog_operation.operation_type == DISCONNECT)
         {
             unsubscribeAllTopics(blog_operation.client_id, subscriptions, numTopics);
-            close(cdata->csock);
             client_ids[blog_operation.client_id] = false; // mark client id as unused
+            
+            // sending response msg to client
             printf("client %02d was disconnected\n", blog_operation.client_id);
+            send(cdata->csock, &response, sizeof(struct BlogOperation), 0);
+
+            break;
         }
 
         // sending response msg to client
-        send(cdata->csock, &blog_operation, sizeof(struct BlogOperation), 0);
+        send(cdata->csock, &response, sizeof(struct BlogOperation), 0);
+    }
 
+    close(cdata->csock);
     pthread_exit(EXIT_SUCCESS);
 }

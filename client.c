@@ -21,6 +21,7 @@
 int takeInput(struct BlogOperation *operation);
 int getClientAction(char *input);
 void printError(int errorCode);
+void printOperation(struct BlogOperation operation);
 
 int main(int argc, char **argv)
 {
@@ -67,6 +68,9 @@ int main(int argc, char **argv)
       strcpy(operation.topic, "");
       strcpy(operation.content, "");
 
+      printf("enviando msg para primeira conexao\n");
+      printOperation(operation);
+
       count = send(s, &operation, sizeof(operation), 0);
       if (count != sizeof(operation))
       {
@@ -82,12 +86,20 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
       }
 
-      // if server response is 1, connection was successful
-      if (operation.server_response == 1)
+      printf("\nrecebida msg de primeira conexao\n");
+      printOperation(operation);
+
+      // if id has changed, connection was successful
+      if (operation.client_id != 0)
       {
         printf("client %02d connected\n", operation.client_id);
         connected = true;
         id = operation.client_id;
+      }
+      else
+      {
+        printf("no available client ids\n");
+        exit(EXIT_FAILURE);
       }
       continue;
     }
@@ -113,6 +125,9 @@ int main(int argc, char **argv)
     operation.operation_type = actionCode;
     operation.server_response = 0;
 
+    printf("\nenviando nova msg para server\n");
+    printOperation(operation);
+
     // sending message
     count = send(s, &operation, sizeof(operation), 0);
     if (count != sizeof(operation))
@@ -120,6 +135,23 @@ int main(int argc, char **argv)
       printf("error sending message\n");
       exit(EXIT_FAILURE);
     }
+
+    if (actionCode == DISCONNECT)
+    {
+      printf("client %02d was disconnected\n", operation.client_id);
+      break;
+    }
+
+    // waiting for server response
+    count = recv(s, &operation, sizeof(operation), 0);
+    if (count != sizeof(operation))
+    {
+      printf("error receiving message\n");
+      exit(EXIT_FAILURE);
+    }
+
+    printf("\nrecebida nova msg from server\n");
+    printOperation(operation);
   }
 
   close(s);
@@ -199,4 +231,13 @@ void printError(int errorCode)
   }
 
   printf("%s\n", error);
+}
+
+void printOperation(struct BlogOperation operation)
+{
+  printf("client_id: %d\n", operation.client_id);
+  printf("operation_type: %d\n", operation.operation_type);
+  printf("server_response: %d\n", operation.server_response);
+  printf("topic: %s\n", operation.topic);
+  printf("content: %s\n", operation.content);
 }
