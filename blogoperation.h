@@ -1,7 +1,15 @@
 #ifndef BLOGOPERATION_H
 #define BLOGOPERATION_H
 
-struct BlogOperation {
+#define NEW_CONNECTION 1
+#define NEW_POST 2
+#define LIST_TOPICS 3
+#define SUBSCRIBE_TOPIC 4
+#define DISCONNECT 5
+#define UNSUBSCRIBE_TOPIC 6
+
+struct BlogOperation
+{
   int client_id;
   int operation_type;
   int server_response;
@@ -10,7 +18,6 @@ struct BlogOperation {
 };
 
 #endif
-
 
 // NEW_CONNECTION 1
 // NEW_POST 2
