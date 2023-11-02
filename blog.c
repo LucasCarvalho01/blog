@@ -21,17 +21,20 @@ void printTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
     }
 }
 
-char* getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics) {
-    char* contentToSend = malloc(MAX_TOPICS * MAX_TOPIC_NAME_LENGTH * sizeof(char));
+char *getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics)
+{
+    char *contentToSend = malloc(MAX_TOPICS * MAX_TOPIC_NAME_LENGTH * sizeof(char));
 
-    if (numTopics == 0) {
+    if (numTopics == 0)
+    {
         strcpy(contentToSend, "no topics available");
         return contentToSend;
     }
-    
+
     printf("%s ", topics[0]);
     strcpy(contentToSend, topics[0]);
-    for (int i = 1; i < numTopics; i++) {
+    for (int i = 1; i < numTopics; i++)
+    {
         printf("%s ", topics[i]);
         strcat(contentToSend, "; ");
         strcat(contentToSend, topics[i]);
@@ -71,7 +74,7 @@ void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPI
     }
 
     printf("client %02d subscribed to %s\n", client_id, topic);
-    subscriptions[client_id - 1][aux-1] = true;
+    subscriptions[client_id - 1][aux] = true;
 }
 
 void unsubscribeToTopic(int client_id, char *topic_name, bool subscriptions[MAX_CLIENTS][MAX_TOPICS], char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
@@ -106,13 +109,13 @@ void unsubscribeAllTopics(int client_id, bool subscriptions[MAX_CLIENTS][MAX_TOP
     }
 }
 
-void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int num_topics)
+void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int *numTopics)
 {
     bool topicExists = false;
     int topicIndex = -1;
 
     // check if topic exists
-    for (int i = 0; i < num_topics; i++)
+    for (int i = 0; i < (*numTopics); i++)
     {
         if (strcmp(blog_operation.topic, topics[i]) == 0)
         {
@@ -124,34 +127,21 @@ void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX
 
     if (topicExists == false)
     {
-        printf("topic %s does not exist\n", blog_operation.topic);
-    }
-    else
-    {
-        printf("new post added in %s by %02d\n", blog_operation.topic, blog_operation.client_id);
+        // topic does not exist, create new topic
+        int aux = (*numTopics);
+        strcpy(topics[aux], blog_operation.topic);
+        (*numTopics)++;
     }
 
-    // // TO-DO: refatorar isso usando threads
-    // if (topic_exists) {
-    //     // send message to subscribed clients
-    //     for (int i = 0; i < MAX_CLIENTS; i++) {
-    //         if (subscriptions[i][topicIndex]) {
-    //             send(clientSocket, &blog_operation, sizeof(struct BlogOperation), 0);
-    //         }
-    //     }
-    // }
+    printf("new post added in %s by %02d\n", blog_operation.topic, blog_operation.client_id);
 }
 
-// void sendPostToSubscribedClients(struct BlogOperation blog_operation, int clientSocket, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int num_topics) {
-//     bool topic_exists = false;
-//     int topicIndex = -1;
-
-//     if (topic_exists) {
-//         // send message to subscribed clients
-//         for (int i = 0; i < MAX_CLIENTS; i++) {
-//             if (subscriptions[i][topic_index]) {
-//                 send(clientSocket, &blog_operation, sizeof(struct BlogOperation), 0);
-//             }
-//         }
-//     }
-// }
+void printOperationDebug(struct BlogOperation operation)
+{
+    printf("\nReceived msg from client:\n");
+    printf("\nclient_id: %d\n", operation.client_id);
+    printf("operation_type: %d\n", operation.operation_type);
+    printf("server_response: %d\n", operation.server_response);
+    printf("topic: %s\n", operation.topic);
+    printf("content: %s\n", operation.content);
+}
