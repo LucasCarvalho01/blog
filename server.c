@@ -17,17 +17,17 @@
 #define MAX_POSTS 20
 
 void *client_thread(void *data);
-void send_message_to_clients(int sender_id, char *message);
+void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id);
+int find_topic_position(char *topic_name);
 
-typedef struct
+struct client_data
 {
     int csock;
     struct sockaddr_storage storage;
-} client_data;
+};
 
-client_data *clients[MAX_CLIENTS];
+struct client_data *clients[MAX_CLIENTS];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
-struct BlogOperation blog_operation;
 char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
 bool client_ids[MAX_CLIENTS] = {false};
 bool subscriptions[MAX_CLIENTS][MAX_TOPICS] = {false};
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 
         printf("accepted new connection. creating thread to communicate\n");
 
-        struct client_data *cdata = malloc(sizeof(client_data));
+        struct client_data *cdata = malloc(sizeof(struct client_data));
         if (!cdata)
         {
             printf("malloc failed\n");
@@ -98,10 +98,8 @@ int main(int argc, char **argv)
 
         pthread_t tid;
         pthread_create(&tid, NULL, client_thread, cdata);
-
-        printf("thread created\nWaiting new connections\n");
     }
-
+    close(s);
     return 0;
 }
 
@@ -118,9 +116,12 @@ void *client_thread(void *data)
 
     while (true)
     {
+        memset(response.topic, 0, sizeof(response.topic));
+        memset(response.content, 0, sizeof(response.content));
+
         // receives msg from clientSocket, stores it in blog struct
         recv(cdata->csock, &clientBlogOperation, sizeof(struct BlogOperation), 0);
-        printOperationDebug(clientBlogOperation);
+        printOperationDebug(clientBlogOperation, false);
 
         if (clientBlogOperation.operation_type == NEW_CONNECTION)
         {
@@ -131,9 +132,15 @@ void *client_thread(void *data)
             {
                 if (client_ids[i] == false)
                 {
+                    pthread_mutex_lock(&clients_mutex);
+
+                    clients[i] = cdata;
                     client_id = i + 1;
                     client_ids[i] = true;
+
                     printf("client %02d connected\n", client_id);
+                    pthread_mutex_unlock(&clients_mutex);
+
                     break;
                 }
             }
@@ -150,8 +157,10 @@ void *client_thread(void *data)
 
         if (clientBlogOperation.operation_type == LIST_TOPICS)
         {
-            char *topicsNames = getTopics(topics, numTopics);
+            char *topicsNames = malloc(MAX_TOPICS * MAX_TOPIC_NAME_LENGTH * sizeof(char));
+            getTopics(topics, numTopics, topicsNames);
             setResponse(&response, clientBlogOperation.client_id, LIST_TOPICS, 1, "", topicsNames);
+            free(topicsNames);
         }
 
         else if (clientBlogOperation.operation_type == SUBSCRIBE_TOPIC)
@@ -170,25 +179,65 @@ void *client_thread(void *data)
         {
             createNewPost(clientBlogOperation, subscriptions, topics, &numTopics);
 
+            int topic_id = find_topic_position(clientBlogOperation.topic);
+            sendPostToSubscriptors(clientBlogOperation, topic_id);
+
+            printf("new post added in %s by %02d\n", clientBlogOperation.topic, clientBlogOperation.client_id);
             setResponse(&response, clientBlogOperation.client_id, NEW_POST, 1, clientBlogOperation.topic, clientBlogOperation.content);
         }
 
         else if (clientBlogOperation.operation_type == DISCONNECT)
         {
             unsubscribeAllTopics(clientBlogOperation.client_id, subscriptions, numTopics);
+
+            pthread_mutex_lock(&clients_mutex);
             client_ids[clientBlogOperation.client_id - 1] = false; // mark client id as unused
+            clients[clientBlogOperation.client_id - 1] = NULL;
 
             printf("client %02d was disconnected\n", clientBlogOperation.client_id);
             setResponse(&response, clientBlogOperation.client_id, DISCONNECT, 1, "", "");
             send(cdata->csock, &response, sizeof(struct BlogOperation), 0);
+            pthread_mutex_unlock(&clients_mutex);
 
             break;
         }
 
-        // sending response msg to client
+        printOperationDebug(response, true);
         send(cdata->csock, &response, sizeof(struct BlogOperation), 0);
     }
 
     close(cdata->csock);
+    free(data);
     pthread_exit(EXIT_SUCCESS);
+}
+
+void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id)
+{
+    pthread_mutex_lock(&clients_mutex);
+
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (subscriptions[i][topic_id] == true)
+        {
+            if (write(clients[i]->csock, blog_operation.content, strlen(blog_operation.content)) < 0)
+            {
+                perror("fail to send post to subscriptors\n");
+                break;
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&clients_mutex);
+}
+
+int find_topic_position(char *topic_name)
+{
+    for (int i = 0; i < numTopics; i++)
+    {
+        if (strcmp(topics[i], topic_name) == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
 }

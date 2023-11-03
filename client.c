@@ -22,6 +22,7 @@ int takeInput(struct BlogOperation *operation);
 int getClientAction(char *input);
 void printError(int errorCode);
 void printOperation(struct BlogOperation operation);
+void clearOperation(struct BlogOperation *operation);
 
 int main(int argc, char **argv)
 {
@@ -98,7 +99,7 @@ int main(int argc, char **argv)
       }
       else
       {
-        printf("no available client ids\n");
+        printf("unable to connect to server\n");
         exit(EXIT_FAILURE);
       }
       continue;
@@ -114,7 +115,7 @@ int main(int argc, char **argv)
     }
 
     // in case of new post, get content from command line
-    if (actionCode == NEW_POST)
+    else if (actionCode == NEW_POST)
     {
       char content[2048];
       fgets(content, 2048, stdin);
@@ -157,6 +158,11 @@ int main(int argc, char **argv)
     {
       printf("%s\n", operation.content);
     }
+    else if (operation.operation_type == NEW_POST)
+    {
+      printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
+      printf("%s\n", operation.content);
+    }
   }
 
   close(s);
@@ -186,6 +192,7 @@ int takeInput(struct BlogOperation *operation)
     // Remove '\n' character at the end of the string
     token[strcspn(token, "\n")] = '\0';
     strcpy(operation->topic, token);
+    strcpy(operation->content, "");
   }
   // handles publish command, get in which topic will be posted
   else if (intAction == NEW_POST)
@@ -249,4 +256,10 @@ void printOperation(struct BlogOperation operation)
   printf("server_response: %d\n", operation.server_response);
   printf("topic: %s\n", operation.topic);
   printf("content: %s\n", operation.content);
+}
+
+void clearOperation(struct BlogOperation *operation)
+{
+  memcpy(operation->topic, "", strlen(""));
+  memcpy(operation->content, "", strlen(""));
 }

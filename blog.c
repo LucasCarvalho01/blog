@@ -21,26 +21,22 @@ void printTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
     }
 }
 
-char *getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics)
+void getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics, char *contentToSend)
 {
-    char *contentToSend = malloc(MAX_TOPICS * MAX_TOPIC_NAME_LENGTH * sizeof(char));
-
     if (numTopics == 0)
     {
         strcpy(contentToSend, "no topics available");
-        return contentToSend;
     }
-
-    printf("%s ", topics[0]);
-    strcpy(contentToSend, topics[0]);
-    for (int i = 1; i < numTopics; i++)
+    else
     {
-        printf("%s ", topics[i]);
-        strcat(contentToSend, "; ");
-        strcat(contentToSend, topics[i]);
+        strcpy(contentToSend, topics[0]);
+        for (int i = 1; i < numTopics; i++)
+        {
+            printf("%s ", topics[i]);
+            strcat(contentToSend, "; ");
+            strcat(contentToSend, topics[i]);
+        }
     }
-
-    return contentToSend;
 }
 
 void setResponse(struct BlogOperation *response, int client_id, int operation, int isServerResponse, char *topic, char *content)
@@ -112,7 +108,6 @@ void unsubscribeAllTopics(int client_id, bool subscriptions[MAX_CLIENTS][MAX_TOP
 void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int *numTopics)
 {
     bool topicExists = false;
-    int topicIndex = -1;
 
     // check if topic exists
     for (int i = 0; i < (*numTopics); i++)
@@ -120,7 +115,6 @@ void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX
         if (strcmp(blog_operation.topic, topics[i]) == 0)
         {
             topicExists = true;
-            topicIndex = i;
             break;
         }
     }
@@ -132,16 +126,27 @@ void createNewPost(struct BlogOperation blog_operation, bool subscriptions[][MAX
         strcpy(topics[aux], blog_operation.topic);
         (*numTopics)++;
     }
-
-    printf("new post added in %s by %02d\n", blog_operation.topic, blog_operation.client_id);
 }
 
-void printOperationDebug(struct BlogOperation operation)
+void printOperationDebug(struct BlogOperation operation, bool isServer)
 {
-    printf("\nReceived msg from client:\n");
+    if (isServer)
+    {
+        printf("\nSending msg:\n");
+    }
+    else
+    {
+        printf("\nReceived msg from client:\n");
+    }
     printf("\nclient_id: %d\n", operation.client_id);
     printf("operation_type: %d\n", operation.operation_type);
     printf("server_response: %d\n", operation.server_response);
     printf("topic: %s\n", operation.topic);
     printf("content: %s\n", operation.content);
+}
+
+void clearOperation(struct BlogOperation *operation)
+{
+    memcpy(operation->topic, "", strlen(""));
+    memcpy(operation->content, "", strlen(""));
 }
