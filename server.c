@@ -12,9 +12,8 @@
 #include "common.h"
 
 #define MAX_CLIENTS 10
-#define MAX_TOPICS 20
+#define MAX_TOPICS 10
 #define MAX_TOPIC_NAME_LENGTH 50
-#define MAX_POSTS 20
 
 void *client_thread(void *data);
 void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id);
@@ -26,6 +25,7 @@ struct client_data
     struct sockaddr_storage storage;
 };
 
+struct BlogOperation newPostStruct;
 struct client_data *clients[MAX_CLIENTS];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH];
@@ -211,22 +211,39 @@ void *client_thread(void *data)
     pthread_exit(EXIT_SUCCESS);
 }
 
+// void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id)
+// {
+//     pthread_mutex_lock(&clients_mutex);
+
+//     for (int i = 0; i < MAX_CLIENTS; i++)
+//     {
+//         if (subscriptions[i][topic_id] == true)
+//         {
+//             if (write(clients[i]->csock, blog_operation.content, strlen(blog_operation.content)) < 0)
+//             {
+//                 perror("fail to send post to subscriptors\n");
+//                 break;
+//             }
+//         }
+//     }
+
+//     pthread_mutex_unlock(&clients_mutex);
+// }
+
 void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id)
 {
     pthread_mutex_lock(&clients_mutex);
 
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (subscriptions[i][topic_id] == true)
+        if (client_ids[i] && subscriptions[i][topic_id])
         {
-            if (write(clients[i]->csock, blog_operation.content, strlen(blog_operation.content)) < 0)
+            if (send(clients[i]->csock, &blog_operation, sizeof(blog_operation), 0) == -1)
             {
-                perror("fail to send post to subscriptors\n");
-                break;
+                printf("Error sending message to client %d\n", i);
             }
         }
     }
-
     pthread_mutex_unlock(&clients_mutex);
 }
 

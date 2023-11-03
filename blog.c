@@ -5,22 +5,6 @@
 
 #include "blog.h"
 
-void printTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)
-{
-    if (num_topics == 0)
-    {
-        printf("no topics available\n");
-    }
-    else
-    {
-        for (int i = 0; i < num_topics; i++)
-        {
-            printf("%s; ", topics[i]);
-        }
-        printf("\n");
-    }
-}
-
 void getTopics(char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int numTopics, char *contentToSend)
 {
     if (numTopics == 0)
@@ -143,10 +127,4 @@ void printOperationDebug(struct BlogOperation operation, bool isServer)
     printf("server_response: %d\n", operation.server_response);
     printf("topic: %s\n", operation.topic);
     printf("content: %s\n", operation.content);
-}
-
-void clearOperation(struct BlogOperation *operation)
-{
-    memcpy(operation->topic, "", strlen(""));
-    memcpy(operation->content, "", strlen(""));
 }
