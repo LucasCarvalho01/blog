@@ -160,6 +160,10 @@ int main(int argc, char **argv)
     }
     else if (operation.operation_type == NEW_POST)
     {
+      if (strcmp(operation.content, "") == 0)
+      {
+        continue;
+      }
       printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
       printf("%s\n", operation.content);
     }

@@ -183,7 +183,7 @@ void *client_thread(void *data)
             sendPostToSubscriptors(clientBlogOperation, topic_id);
 
             printf("new post added in %s by %02d\n", clientBlogOperation.topic, clientBlogOperation.client_id);
-            setResponse(&response, clientBlogOperation.client_id, NEW_POST, 1, clientBlogOperation.topic, clientBlogOperation.content);
+            setResponse(&response, clientBlogOperation.client_id, NEW_POST, 1, "", "");
         }
 
         else if (clientBlogOperation.operation_type == DISCONNECT)
