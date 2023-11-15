@@ -84,8 +84,6 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
 
-        printf("accepted new connection. creating thread to communicate\n");
-
         struct client_data *cdata = malloc(sizeof(struct client_data));
         if (!cdata)
         {
@@ -112,7 +110,7 @@ void *client_thread(void *data)
 
     char caddrstr[256];
     converterEnderecoEmString(caddr, caddrstr, 256);
-    printf("[log] connection from %s\n", caddrstr);
+    // printf("[log] connection from %s\n", caddrstr);
 
     while (true)
     {

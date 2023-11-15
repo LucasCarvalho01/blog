@@ -116,13 +116,13 @@ void printOperationDebug(struct BlogOperation operation, bool isServer)
 {
     if (isServer)
     {
-        printf("\nSending msg:\n");
+        printf("\n[DEBUG - enviando]\n");
     }
     else
     {
-        printf("\nReceived msg from client:\n");
+        printf("\n[DEBUG - recebido]\n");
     }
-    printf("\nclient_id: %d\n", operation.client_id);
+    printf("client_id: %d\n", operation.client_id);
     printf("operation_type: %d\n", operation.operation_type);
     printf("server_response: %d\n", operation.server_response);
     printf("topic: %s\n", operation.topic);

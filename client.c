@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 #include "blogoperation.h"
 #include "common.h"
@@ -19,10 +20,14 @@
 #define INVALID_COMMAND -1
 
 int takeInput(struct BlogOperation *operation);
+void *receiveMessage();
 int getClientAction(char *input);
 void printError(int errorCode);
 void printOperation(struct BlogOperation operation);
 void clearOperation(struct BlogOperation *operation);
+
+struct BlogOperation operation;
+int sock;
 
 int main(int argc, char **argv)
 {
@@ -33,21 +38,18 @@ int main(int argc, char **argv)
   int id = 0;
   bool connected = false;
 
-  struct BlogOperation operation;
-
   struct sockaddr_storage storage;
   addrparse(ip, port, &storage);
 
   struct sockaddr *addr = (struct sockaddr *)&storage;
 
-  int s;
-  s = socket(storage.ss_family, SOCK_STREAM, 0);
-  if (s == -1)
+  sock = socket(storage.ss_family, SOCK_STREAM, 0);
+  if (sock == -1)
   {
     exit(EXIT_FAILURE);
   }
 
-  if (0 != connect(s, addr, sizeof(storage)))
+  if (0 != connect(sock, addr, sizeof(storage)))
   {
     exit(EXIT_FAILURE);
   }
@@ -55,7 +57,7 @@ int main(int argc, char **argv)
   // client connected to server
   char addrstr[256];
   converterEnderecoEmString(addr, addrstr, 256);
-  printf("connected to %s\n", addrstr);
+  // printf("connected to %s\n", addrstr);
 
   // listening to console commands
   while (true)
@@ -69,10 +71,10 @@ int main(int argc, char **argv)
       strcpy(operation.topic, "");
       strcpy(operation.content, "");
 
-      printf("enviando msg para primeira conexao\n");
+      // printf("enviando msg para primeira conexao\n");
       printOperation(operation);
 
-      count = send(s, &operation, sizeof(operation), 0);
+      count = send(sock, &operation, sizeof(operation), 0);
       if (count != sizeof(operation))
       {
         printf("error sending message\n");
@@ -80,20 +82,19 @@ int main(int argc, char **argv)
       }
 
       // waiting for server response
-      count = recv(s, &operation, sizeof(operation), 0);
+      count = recv(sock, &operation, sizeof(operation), 0);
       if (count != sizeof(operation))
       {
         printf("error receiving message\n");
         exit(EXIT_FAILURE);
       }
 
-      printf("\nrecebida msg de primeira conexao\n");
+      printf("\n[DEBUG - recebido]\n");
       printOperation(operation);
 
       // if id has changed, connection was successful
       if (operation.client_id != 0)
       {
-        printf("client %02d connected\n", operation.client_id);
         connected = true;
         id = operation.client_id;
       }
@@ -104,6 +105,10 @@ int main(int argc, char **argv)
       }
       continue;
     }
+
+    // thread to handle receiving messages from server
+    pthread_t receiveThread;
+    pthread_create(&receiveThread, NULL, receiveMessage, NULL);
 
     actionCode = takeInput(&operation);
 
@@ -126,11 +131,11 @@ int main(int argc, char **argv)
     operation.operation_type = actionCode;
     operation.server_response = 0;
 
-    printf("\nenviando nova msg para server\n");
+    printf("\n[DEBUG - enviando]\n");
     printOperation(operation);
 
     // sending message
-    count = send(s, &operation, sizeof(operation), 0);
+    count = send(sock, &operation, sizeof(operation), 0);
     if (count != sizeof(operation))
     {
       printf("error sending message\n");
@@ -139,38 +144,65 @@ int main(int argc, char **argv)
 
     if (actionCode == DISCONNECT)
     {
-      printf("client %02d was disconnected\n", operation.client_id);
       break;
     }
 
-    // waiting for server response
-    count = recv(s, &operation, sizeof(operation), 0);
-    if (count != sizeof(operation))
-    {
-      printf("error receiving message\n");
-      exit(EXIT_FAILURE);
-    }
+    // // waiting for server response
+    // count = recv(s, &operation, sizeof(operation), 0);
+    // if (count != sizeof(operation))
+    // {
+    //   printf("error receiving message\n");
+    //   exit(EXIT_FAILURE);
+    // }
 
-    printf("\nrecebida nova msg from server\n");
-    printOperation(operation);
+    // printf("\n[DEBUG] - recebendo\n");
+    // printOperation(operation);
 
-    if (operation.operation_type == LIST_TOPICS)
-    {
-      printf("%s\n", operation.content);
-    }
-    else if (operation.operation_type == NEW_POST)
-    {
-      if (strcmp(operation.content, "") == 0)
-      {
-        continue;
-      }
-      printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
-      printf("%s\n", operation.content);
-    }
+    // if (operation.operation_type == LIST_TOPICS)
+    // {
+    //   printf("%s\n", operation.content);
+    // }
+    // else if (operation.operation_type == NEW_POST)
+    // {
+    //   if (strcmp(operation.content, "") == 0)
+    //   {
+    //     continue;
+    //   }
+    //   printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
+    //   printf("%s\n", operation.content);
+    // }
   }
 
-  close(s);
+  close(sock);
   return 0;
+}
+
+void *receiveMessage()
+{
+  while (true)
+  {
+    int count = recv(sock, &operation, sizeof(operation), 0);
+
+    if (count > 0)
+    {
+      printf("\n[DEBUG] - recebendo\n");
+      printOperation(operation);
+
+      if (operation.operation_type == LIST_TOPICS)
+      {
+        printf("%s\n", operation.content);
+      }
+      else if (operation.operation_type == NEW_POST)
+      {
+        if (strcmp(operation.content, "") == 0)
+        {
+          continue;
+        }
+        printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
+        printf("%s\n", operation.content);
+      }
+    }
+  }
 }
 
 int takeInput(struct BlogOperation *operation)
