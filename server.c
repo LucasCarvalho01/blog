@@ -174,6 +174,8 @@ void *client_thread(void *data)
             int topic_id = find_topic_position(clientBlogOperation.topic);
             sendPostToSubscriptors(clientBlogOperation, topic_id);
 
+            // avoid conflict in case of multiple posts
+            // or if sender is subscribed to topic
             sleep(0.5);
             printf("new post added in %s by %02d\n", clientBlogOperation.topic, clientBlogOperation.client_id);
             setResponse(&response, clientBlogOperation.client_id, NEW_POST, 1, "", "");
