@@ -32,7 +32,7 @@ void setResponse(struct BlogOperation *response, int client_id, int operation, i
     memcpy(response->content, content, strlen(content));
 }
 
-void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int *numTopics)
+bool subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPICS], char topics[][MAX_TOPIC_NAME_LENGTH], int *numTopics)
 {
     int aux = -1;
 
@@ -45,6 +45,12 @@ void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPI
         }
     }
 
+    if (subscriptions[client_id - 1][aux] == true)
+    {
+        // client is already subscribed to topic
+        return false;
+    }
+
     if (aux == -1)
     {
         // topic does not exist, create new topic
@@ -55,6 +61,7 @@ void subscribeToTopic(char topic[], int client_id, bool subscriptions[][MAX_TOPI
 
     printf("client %02d subscribed to %s\n", client_id, topic);
     subscriptions[client_id - 1][aux] = true;
+    return true;
 }
 
 void unsubscribeToTopic(int client_id, char *topic_name, bool subscriptions[MAX_CLIENTS][MAX_TOPICS], char topics[MAX_TOPICS][MAX_TOPIC_NAME_LENGTH], int num_topics)

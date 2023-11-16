@@ -66,10 +66,6 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    char addrstr[256];
-    converterEnderecoEmString(addr, addrstr, 256);
-    printf("[log] bound to %s, waiting connections\n", addrstr);
-
     while (true)
     {
         struct sockaddr_storage cstorage;
@@ -104,13 +100,8 @@ int main(int argc, char **argv)
 void *client_thread(void *data)
 {
     struct client_data *cdata = (struct client_data *)data;
-    struct sockaddr *caddr = (struct sockaddr *)(&cdata->storage);
     struct BlogOperation clientBlogOperation;
     struct BlogOperation response;
-
-    char caddrstr[256];
-    converterEnderecoEmString(caddr, caddrstr, 256);
-    // printf("[log] connection from %s\n", caddrstr);
 
     while (true)
     {
@@ -119,7 +110,6 @@ void *client_thread(void *data)
 
         // receives msg from clientSocket, stores it in blog struct
         recv(cdata->csock, &clientBlogOperation, sizeof(struct BlogOperation), 0);
-        printOperationDebug(clientBlogOperation, false);
 
         if (clientBlogOperation.operation_type == NEW_CONNECTION)
         {
@@ -162,9 +152,13 @@ void *client_thread(void *data)
         }
 
         else if (clientBlogOperation.operation_type == SUBSCRIBE_TOPIC)
-        {
-            subscribeToTopic(clientBlogOperation.topic, clientBlogOperation.client_id, subscriptions, topics, &numTopics);
-            setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "");
+        {   
+            bool newSubscription;
+            newSubscription = subscribeToTopic(clientBlogOperation.topic, clientBlogOperation.client_id, subscriptions, topics, &numTopics);
+
+            (newSubscription) ? 
+                setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "") :
+                setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "error: already subscribed");
         }
 
         else if (clientBlogOperation.operation_type == UNSUBSCRIBE_TOPIC)
@@ -180,6 +174,7 @@ void *client_thread(void *data)
             int topic_id = find_topic_position(clientBlogOperation.topic);
             sendPostToSubscriptors(clientBlogOperation, topic_id);
 
+            sleep(0.5);
             printf("new post added in %s by %02d\n", clientBlogOperation.topic, clientBlogOperation.client_id);
             setResponse(&response, clientBlogOperation.client_id, NEW_POST, 1, "", "");
         }
@@ -200,7 +195,6 @@ void *client_thread(void *data)
             break;
         }
 
-        printOperationDebug(response, true);
         send(cdata->csock, &response, sizeof(struct BlogOperation), 0);
     }
 
@@ -208,25 +202,6 @@ void *client_thread(void *data)
     free(data);
     pthread_exit(EXIT_SUCCESS);
 }
-
-// void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id)
-// {
-//     pthread_mutex_lock(&clients_mutex);
-
-//     for (int i = 0; i < MAX_CLIENTS; i++)
-//     {
-//         if (subscriptions[i][topic_id] == true)
-//         {
-//             if (write(clients[i]->csock, blog_operation.content, strlen(blog_operation.content)) < 0)
-//             {
-//                 perror("fail to send post to subscriptors\n");
-//                 break;
-//             }
-//         }
-//     }
-
-//     pthread_mutex_unlock(&clients_mutex);
-// }
 
 void sendPostToSubscriptors(struct BlogOperation blog_operation, int topic_id)
 {

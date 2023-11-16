@@ -54,11 +54,6 @@ int main(int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
-  // client connected to server
-  char addrstr[256];
-  converterEnderecoEmString(addr, addrstr, 256);
-  // printf("connected to %s\n", addrstr);
-
   // listening to console commands
   while (true)
   {
@@ -70,9 +65,6 @@ int main(int argc, char **argv)
       operation.server_response = 0;
       strcpy(operation.topic, "");
       strcpy(operation.content, "");
-
-      // printf("enviando msg para primeira conexao\n");
-      printOperation(operation);
 
       count = send(sock, &operation, sizeof(operation), 0);
       if (count != sizeof(operation))
@@ -88,9 +80,6 @@ int main(int argc, char **argv)
         printf("error receiving message\n");
         exit(EXIT_FAILURE);
       }
-
-      printf("\n[DEBUG - recebido]\n");
-      printOperation(operation);
 
       // if id has changed, connection was successful
       if (operation.client_id != 0)
@@ -131,9 +120,6 @@ int main(int argc, char **argv)
     operation.operation_type = actionCode;
     operation.server_response = 0;
 
-    printf("\n[DEBUG - enviando]\n");
-    printOperation(operation);
-
     // sending message
     count = send(sock, &operation, sizeof(operation), 0);
     if (count != sizeof(operation))
@@ -146,31 +132,6 @@ int main(int argc, char **argv)
     {
       break;
     }
-
-    // // waiting for server response
-    // count = recv(s, &operation, sizeof(operation), 0);
-    // if (count != sizeof(operation))
-    // {
-    //   printf("error receiving message\n");
-    //   exit(EXIT_FAILURE);
-    // }
-
-    // printf("\n[DEBUG] - recebendo\n");
-    // printOperation(operation);
-
-    // if (operation.operation_type == LIST_TOPICS)
-    // {
-    //   printf("%s\n", operation.content);
-    // }
-    // else if (operation.operation_type == NEW_POST)
-    // {
-    //   if (strcmp(operation.content, "") == 0)
-    //   {
-    //     continue;
-    //   }
-    //   printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
-    //   printf("%s\n", operation.content);
-    // }
   }
 
   close(sock);
@@ -185,9 +146,6 @@ void *receiveMessage()
 
     if (count > 0)
     {
-      printf("\n[DEBUG] - recebendo\n");
-      printOperation(operation);
-
       if (operation.operation_type == LIST_TOPICS)
       {
         printf("%s\n", operation.content);
@@ -199,7 +157,14 @@ void *receiveMessage()
           continue;
         }
         printf("new post added in %s by %02d\n", operation.topic, operation.client_id);
-        printf("%s\n", operation.content);
+        printf("%s", operation.content);
+      }
+      else if (operation.operation_type == SUBSCRIBE_TOPIC)
+      {
+        if (strncmp(operation.content, "error", 5) == 0)
+        {
+          printf("%s\n", operation.content);
+        }
       }
     }
   }
