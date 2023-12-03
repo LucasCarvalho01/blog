@@ -152,13 +152,11 @@ void *client_thread(void *data)
         }
 
         else if (clientBlogOperation.operation_type == SUBSCRIBE_TOPIC)
-        {   
+        {
             bool newSubscription;
             newSubscription = subscribeToTopic(clientBlogOperation.topic, clientBlogOperation.client_id, subscriptions, topics, &numTopics);
 
-            (newSubscription) ? 
-                setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "") :
-                setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "error: already subscribed");
+            (newSubscription) ? setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "") : setResponse(&response, clientBlogOperation.client_id, SUBSCRIBE_TOPIC, 1, clientBlogOperation.topic, "error: already subscribed");
         }
 
         else if (clientBlogOperation.operation_type == UNSUBSCRIBE_TOPIC)
