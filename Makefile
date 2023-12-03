@@ -1,7 +1,8 @@
 all:
-	gcc -Wall -c common.c
-	gcc -Wall -g server.c common.o game.c -o ./bin/server
-	gcc -Wall -g client.c common.o -o ./bin/client
+	gcc -Wall -c common.c -o ./bin/common.o 
+	gcc -Wall -c blog.c -o ./bin/blog.o
+	gcc -Wall -g server.c blog.c ./bin/common.o  -lpthread -o ./bin/server
+	gcc -Wall -g client.c ./bin/common.o -lpthread -o ./bin/client
 
 clean:
-	rm common.o ./bin/client ./bin/server
+	rm ./bin/*

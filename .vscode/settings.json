@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "*.js": "javascriptreact",
+    "blog.h": "c",
+    "blogoperation.h": "c",
+    "common.h": "c"
+  }
+}
