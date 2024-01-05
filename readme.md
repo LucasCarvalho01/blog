@@ -7,6 +7,25 @@ It permits clients to subscribe in topics, aswell usubscribe to them. Clients ma
 
 The network layer is built upon TCP protocol. It also implements both ipv4 and ipv6 protocols.
 
+## Running
+
+To run the blog, firstly build all the source code. You can do this simply using the makefile by entering:
+
+```
+make
+```
+
+Then, first run the server. You can choose to use ipv4 or ipv6 as mentioned later in this documentation. For example, run:
+
+```
+./bin/server v4 51511
+```
+
+And for each user, run the client binary:
+```
+./bin/client 127.0.0.1 51511
+```
+
 ## Server
 
 The server is a program that listens to clients connection and handles the users' commands. 
@@ -38,11 +57,18 @@ To run the client program(s), enter the command:
 
 ## Commands
 
-#### Check the existing topics in the blog:  
-> _list topics_   
+_list topics_   
 It will prompt a list of topics that were previously created.
 
+_subscribe <topic_name>_  
 To subscribe to an existing topic, or create one and after that subscribe in it:  
-_subscribe <topic_name>_ In the server console it will be prompted that the given client was subscribed to a specific topic.
+In the server console it will be prompted that the given client was subscribed to a specific topic.
 
-To 
+_unsubscribe <topic_name>_  
+Command to unsubscribe the user from a topic.
+
+_pubish in <topic_name>_   
+In order to publish a new post in a specific topic. After hitting enter, the console will get the input related to the content of the post.
+
+_exit_  
+Command to finish the execution of the client program. The related user ID will be freed, and all the infos related to subscription will be reseted to that ID.
